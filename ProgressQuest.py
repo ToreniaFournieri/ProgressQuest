@@ -2,13 +2,13 @@ import random
 
 # Define the Hero class
 class Hero:
+
+#ここあたりのパラメータをいじると楽しい。
     XP_MULTIPLIER = 300  # Define a constant multiplier for XP required for next level
-
-
     DEFAULT_STR = 8
-    DEFAULT_VIT = 0
-    DEFAULT_ENDURANCE = 0
-    DEFAULT_LUCK = 24
+    DEFAULT_VIT = 8
+    DEFAULT_ENDURANCE = 8
+    DEFAULT_LUCK = 8
     DEFAULT_DIRECTIONALSENSE = 8
     
     EQUIPMENT_COST_MULTIPLIER = 3  # New constant for equipment pricing formula
@@ -221,8 +221,11 @@ def game_loop(turns=10):
     return log
 # Running the game loop
 if __name__ == "__main__":
+
+    #ゲームの試行回数。数が多ければ多いほど進捗
     game_actions_with_xp = game_loop(30000)
 
+    #ログとして見る分の内容。マイナスがついているのは、最後から何番目までのログを見るかを指定。全部見るとなると大変なため、最後の部分だけ表示させている
     for action in game_actions_with_xp[-100:]:
         print(action)
 
