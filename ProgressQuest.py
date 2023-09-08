@@ -10,6 +10,9 @@ class Hero:
     DEFAULT_ENDURANCE = 0
     DEFAULT_LUCK = 24
     DEFAULT_DIRECTIONALSENSE = 8
+    
+    EQUIPMENT_COST_MULTIPLIER = 3  # New constant for equipment pricing formula
+
 
     def __init__(self, STR=DEFAULT_STR, VIT=DEFAULT_VIT, ENDURANCE=DEFAULT_ENDURANCE, LUCK=DEFAULT_LUCK, DIRECTIONALSENSE=DEFAULT_DIRECTIONALSENSE):
         self.level = 1
@@ -86,11 +89,12 @@ class Hero:
         affordable_equipments = town.buy_equipment(self.gold)
         if affordable_equipments:
             chosen_equipment = random.choice(affordable_equipments)
+            equipment_cost = chosen_equipment.modifier * chosen_equipment.modifier * Hero.EQUIPMENT_COST_MULTIPLIER
             if chosen_equipment.name == "Weapon":
                 self.weapon = chosen_equipment
             elif chosen_equipment.name == "Shield":
                 self.shield = chosen_equipment
-            self.gold -= chosen_equipment.modifier * chosen_equipment.modifier * 3  # updated cost
+            self.gold -= equipment_cost
 
     def eat(self, town):
         food_cost = 10
@@ -151,10 +155,12 @@ class Town:
         return sum(prices[trophy] for trophy in trophies)
     def buy_equipment(self, gold):
         available_equipments = [
-            Equipment("Weapon", i, 10 * i) for i in range(1, 6) if gold >= i * i * 3
+            Equipment("Weapon", i, 10 * i) for i in range(1, 6) if gold >= i * i * Hero.EQUIPMENT_COST_MULTIPLIER
         ] + [
-            Equipment("Shield", i, 10 * i) for i in range(1, 6) if gold >= i * i * 3
+            Equipment("Shield", i, 10 * i) for i in range(1, 6) if gold >= i * i * Hero.EQUIPMENT_COST_MULTIPLIER
         ]
+        return available_equipments if available_equipments else None
+
         
         return available_equipments if available_equipments else None
 
@@ -191,9 +197,12 @@ def game_loop(turns=10):
             # Handling the equipment purchase
             hero.buy_equipment(town)
             if hero.weapon:
-                action_log.append(f"Bought a Weapon +{hero.weapon.modifier} for {hero.weapon.modifier * hero.weapon.modifier * 3} gold.")
+                weapon_cost = hero.weapon.modifier * hero.weapon.modifier * Hero.EQUIPMENT_COST_MULTIPLIER
+                action_log.append(f"Bought a Weapon +{hero.weapon.modifier} for {weapon_cost} gold.")
             if hero.shield:
-                action_log.append(f"Bought a Shield +{hero.shield.modifier} for {hero.shield.modifier * hero.shield.modifier * 3} gold.")
+                shield_cost = hero.shield.modifier * hero.shield.modifier * Hero.EQUIPMENT_COST_MULTIPLIER
+                action_log.append(f"Bought a Shield +{hero.shield.modifier} for {shield_cost} gold.")
+
         
         while hero.experience >= hero.level * Hero.XP_MULTIPLIER:
             hero.experience -= hero.level * Hero.XP_MULTIPLIER
