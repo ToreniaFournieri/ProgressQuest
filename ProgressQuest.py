@@ -7,10 +7,10 @@ class Hero:
 
 #ここあたりのパラメータをいじると楽しい。
     XP_MULTIPLIER = 300  # Define a constant multiplier for XP required for next level
-    DEFAULT_STR = 18
-    DEFAULT_VIT = 18
-    DEFAULT_ENDURANCE = 18
-    DEFAULT_LUCK = 18
+    DEFAULT_STR = 8
+    DEFAULT_VIT = 8
+    DEFAULT_ENDURANCE = 8
+    DEFAULT_LUCK = 88
     DEFAULT_DIRECTIONALSENSE = 8
     
     EQUIPMENT_COST_MULTIPLIER = 3  # New constant for equipment pricing formula
