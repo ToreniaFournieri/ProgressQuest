@@ -1,5 +1,6 @@
 import random
 import curses
+import time
 
 # Define the Hero class
 class Hero:
@@ -10,14 +11,14 @@ class Hero:
     DEFAULT_VIT = 8
     DEFAULT_ENDURANCE = 8
     DEFAULT_LUCK = 8
-    DEFAULT_DIRECTIONALSENSE = 8
+    DEFAULT_DIRECTIONALSENSE = 28
     
     EQUIPMENT_COST_MULTIPLIER = 3  # New constant for equipment pricing formula
-
+    EQUIPMENT_DURATION = 20
     current_turn = 1
 
 
-    def __init__(self, STR=DEFAULT_STR, VIT=DEFAULT_VIT, ENDURANCE=DEFAULT_ENDURANCE, LUCK=DEFAULT_LUCK, DIRECTIONALSENSE=DEFAULT_DIRECTIONALSENSE):
+    def __init__(self, STR=DEFAULT_STR, VIT=DEFAULT_VIT, ENDURANCE=DEFAULT_ENDURANCE, LUCK=DEFAULT_LUCK, DIRECTIONALSENSE=DEFAULT_DIRECTIONALSENSE, EQUIPMENT_DURATION=EQUIPMENT_DURATION):
         self.level = 1
         self.experience = 0
         self.STR = STR
@@ -25,6 +26,7 @@ class Hero:
         self.ENDURANCE = ENDURANCE
         self.LUCK = LUCK
         self.DIRECTIONALSENSE = DIRECTIONALSENSE
+        self.EQUIPMENT_DURATION = EQUIPMENT_DURATION
         self.max_health = int(100 + self.VIT / 4 * self.level)
         self.health = self.max_health
         self.stamina = 100
@@ -201,9 +203,9 @@ class Town:
         return sum(prices[trophy] for trophy in trophies)
     def buy_equipment(self, gold):
         available_equipments = [
-            Equipment("Weapon", i, 10 * i) for i in range(1, 6) if gold >= i * i * Hero.EQUIPMENT_COST_MULTIPLIER
+            Equipment("Weapon", i, Hero.EQUIPMENT_DURATION * i) for i in range(1, 6) if gold >= i * i * Hero.EQUIPMENT_COST_MULTIPLIER
         ] + [
-            Equipment("Shield", i, 10 * i) for i in range(1, 6) if gold >= i * i * Hero.EQUIPMENT_COST_MULTIPLIER
+            Equipment("Shield", i, Hero.EQUIPMENT_DURATION * i) for i in range(1, 6) if gold >= i * i * Hero.EQUIPMENT_COST_MULTIPLIER
         ]
         return available_equipments if available_equipments else None
         
@@ -274,12 +276,14 @@ def main(stdscr):
     stdscr.nodelay(0)  # Wait for user input
     stdscr.keypad(True)
     
-    max_turns = 10000
+    max_turns = 90000
     LOG_DISPLAY_COUNT = 5
 
-    
     stdscr.addstr(0, 0, "Welcome to Text-Based Progress Quest!", curses.color_pair(1))
-    stdscr.addstr(2, 0, "Press any key to progress one turn or 'q' to quit.")
+
+    stdscr.nodelay(1)  # Don't wait for user input
+    stdscr.addstr(2, 0, "The game progresses automatically. Press 'q' to quit at any time.")
+
     
     
     
@@ -303,7 +307,6 @@ def main(stdscr):
         previous_health = hero.health
         previous_stamina = hero.stamina
 
-
         # Advance one turn and append the results to log
         hero.current_turn += 1
 
@@ -319,7 +322,6 @@ def main(stdscr):
             row += 1
         row += 1
 
-        
         # Check for 'q' key to quit the game
         k = stdscr.getch()
         if k == ord('q'):
@@ -330,9 +332,14 @@ def main(stdscr):
             stdscr.getch()  # Wait for a key press
             break
         
+        # Insert a delay so the game progresses at a reasonable pace
+        time.sleep(0.2)
+
         row = 6  # Reset row for next iteration
     
     stdscr.addstr(row, 0, "Thanks for playing!", curses.color_pair(1))
+    time.sleep(1.0)
+
     stdscr.getch()  # Wait for one more key press before exiting
 
 
