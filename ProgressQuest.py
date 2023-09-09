@@ -11,10 +11,10 @@ class Hero:
     DEFAULT_VIT = 8
     DEFAULT_ENDURANCE = 8
     DEFAULT_LUCK = 8
-    DEFAULT_DIRECTIONALSENSE = 28
+    DEFAULT_DIRECTIONALSENSE = 8
     
     EQUIPMENT_COST_MULTIPLIER = 3  # New constant for equipment pricing formula
-    EQUIPMENT_DURATION = 20
+    EQUIPMENT_DURATION = 40
     current_turn = 1
 
 
