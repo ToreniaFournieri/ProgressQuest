@@ -1,4 +1,5 @@
 import random
+import curses
 
 # Define the Hero class
 class Hero:
@@ -139,6 +140,25 @@ class Equipment:
     def is_broken(self):
         return self.duration <= 0
 
+def display_hero_status(stdscr, hero, previous_health, previous_stamina):
+    # Clear the top portion of the screen for the status
+    for i in range(5):
+        stdscr.addstr(i, 0, " " * 80)
+
+    # Display hero status
+    health_change = int(hero.health - previous_health)
+    health_sign = "+" if health_change >= 0 else ""
+    stamina_change = int(hero.stamina - previous_stamina)
+    stamina_sign = "+" if stamina_change >= 0 else ""
+
+    stdscr.addstr(0, 0, "HERO")
+    stdscr.addstr(1, 0, f"Health:   {hero.health}/{hero.max_health}   ({health_sign}{health_change})")
+    stdscr.addstr(2, 0, f"Stamina:  {hero.stamina}/100 ({stamina_sign}{stamina_change})")
+    stdscr.addstr(3, 0, f"Gold:     {hero.gold}")
+    stdscr.addstr(4, 0, f"Distance: {hero.distance_from_town} km from town")
+
+    return hero.health, hero.stamina  # Return current health for next comparison
+
 # Define the Monster class
 class Monster:
     def __init__(self):
@@ -219,7 +239,9 @@ def game_loop(turns=10):
         log.append((f"{hero.health}/{hero.max_health}", hero.gold, hero.stamina, len(hero.trophies), distance_display, f"{hero.quest_progress}%", weapon_status, shield_status, action_log))
 
     return log
-# Running the game loop
+
+'''
+# Running the game loop on terminal
 if __name__ == "__main__":
 
     #ゲームの試行回数。数が多ければ多いほど進捗
@@ -228,8 +250,73 @@ if __name__ == "__main__":
     #ログとして見る分の内容。マイナスがついているのは、最後から何番目までのログを見るかを指定。全部見るとなると大変なため、最後の部分だけ表示させている
     for action in game_actions_with_xp[-100:]:
         print(action)
+'''
 
 # Note:
 #('今のHP/最大HP', Gold, スタミナ, 持ち物の数, 進捗(10を超えると+1%), クエスト進捗(%),
 # W武器(耐久値), S防具(耐久値), [ログの中身]
 #('38/176', 1, 32, 0, '+2', '44%', 'W(0)', 'S(0)', [])
+
+
+def main(stdscr):
+    # Set up the terminal
+    curses.start_color()
+    curses.init_pair(1, curses.COLOR_GREEN, curses.COLOR_BLACK)
+    stdscr.nodelay(0)  # Wait for user input
+    stdscr.keypad(True)
+    
+    max_turns = 10000
+    
+    stdscr.addstr(0, 0, "Welcome to Text-Based Progress Quest!", curses.color_pair(1))
+    stdscr.addstr(2, 0, "Press any key to progress one turn or 'q' to quit.")
+    
+    
+    
+    # Initialize game
+    hero = Hero()
+    town = Town()
+    log = []
+    
+    # Initialize previous health for comparison
+    previous_health = hero.health
+    previous_stamina = hero.stamina
+    
+    row = 5  # Starting row for game logs
+    while True:
+        stdscr.clear()  # Clear the screen
+        display_hero_status(stdscr, hero, previous_health, previous_stamina)
+        
+        # Advance one turn and append the results to log
+        turn_actions = game_loop(1)
+        log.append(turn_actions[0])
+
+        # Display the last action
+        for line in log[-1][-1]:  # Taking the last element which is the action_log
+            stdscr.addstr(row, 0, line)
+            row += 1
+        row += 1
+
+        stdscr.addstr(row, 0, "-------------------------------------------------------------------------------")
+        row += 1
+
+        # Update previous_health and previous_stamina for the next iteration
+        previous_health = hero.health
+        previous_stamina = hero.stamina
+        
+        # Check for 'q' key to quit the game
+        k = stdscr.getch()
+        if k == ord('q'):
+            break
+
+        if len(log) >= max_turns:
+            stdscr.addstr(row, 0, "Game Over. Press 'q' to quit.")
+            stdscr.getch()  # Wait for a key press
+            break
+        
+        row = 5  # Reset row for next iteration
+    
+    stdscr.addstr(row, 0, "Thanks for playing!", curses.color_pair(1))
+    stdscr.getch()  # Wait for one more key press before exiting
+
+
+curses.wrapper(main)
