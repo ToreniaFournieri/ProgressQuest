@@ -80,6 +80,7 @@ class Hero:
         # After the fight, if the hero won
         if victory:
             self.monster_defeat_streak += 1
+            self.experience += initial_monster_health  # <-- Add this line
             if self.monster_defeat_streak == 3:
                 self.acquire_magical_letter()
                 self.monster_defeat_streak = 0  # Reset the counter
@@ -193,7 +194,7 @@ class Equipment:
 
     def __str__(self):  # Overriding the default string representation
         if self.is_broken():
-            return f"{self.name} +{self.modifier} (broken)"
+            return f"{self.name} +{self.modifier} (破損)"
         else:
             return f"{self.name} +{self.modifier} ({self.duration})"
         
@@ -209,19 +210,18 @@ def display_hero_status(stdscr, hero, previous_health, previous_stamina):
     stamina_change = int(hero.stamina - previous_stamina)
     stamina_sign = "+" if stamina_change >= 0 else ""
 
-    stdscr.addstr(0, 0, f"HERO  Turn: {hero.current_turn} ")
-    stdscr.addstr(1, 0, f"STR:{hero.STR}, VIT:{hero.VIT}, LUCK:{hero.LUCK}, ENDURANCE:{hero.ENDURANCE}, DIRECTIONALSENSE:{hero.DIRECTIONALSENSE}  ")
-    stdscr.addstr(2, 0, f"Health:   {hero.health}/{hero.max_health}   ({health_sign}{health_change})")
-    stdscr.addstr(3, 0, f"Stamina:  {hero.stamina}/100 ({stamina_sign}{stamina_change})")
-    stdscr.addstr(4, 0, f"Gold:     {hero.gold}")
-    stdscr.addstr(5, 0, f"Distance: {hero.distance_from_town} km from town")
+    stdscr.addstr(0, 0, f"主人公  ターン: {hero.current_turn} ")
+    stdscr.addstr(1, 0, f"力:{hero.STR}, 体力:{hero.VIT}, 運:{hero.LUCK}, 熟練:{hero.ENDURANCE}, 方向感覚:{hero.DIRECTIONALSENSE}  ")
+    stdscr.addstr(2, 0, f"体力:   {hero.health}/{hero.max_health}   ({health_sign}{health_change})")
+    stdscr.addstr(3, 0, f"スタミナ:  {hero.stamina}/100 ({stamina_sign}{stamina_change})")
+    stdscr.addstr(4, 0, f"お金:     {hero.gold}")
+    stdscr.addstr(5, 0, f"街からの距離: {hero.distance_from_town} km")
     stdscr.addstr(2, 40, f"Level: {hero.level} ")
-    stdscr.addstr(2, 60, f"Experience: {hero.experience} ({hero.experience_percentage():.1f}%)")
-    stdscr.addstr(3, 40, f"Weapon: {hero.weapon} ")
-    stdscr.addstr(4, 40, f"Sheild: {hero.shield} ")
-    stdscr.addstr(5, 40, f"Quest: {hero.quest_progress}% ")
-    stdscr.addstr(6, 0, f"Loots: {hero.trophies} ")
-    stdscr.addstr(6, 0, f"Loots: {hero.trophies} ")
+    stdscr.addstr(2, 60, f"経験値: {hero.experience} ({hero.experience_percentage():.1f}%)")
+    stdscr.addstr(3, 40, f"武器: {hero.weapon} ")
+    stdscr.addstr(4, 40, f"防具: {hero.shield} ")
+    stdscr.addstr(5, 40, f"クエスト進捗: {hero.quest_progress}% ")
+    stdscr.addstr(6, 0, f"所持品: {hero.trophies} ")
     # List of all possible magical letters in order
     magical_letters_pool = ["壱", "弐", "参", "肆", "伍", "陸", "漆", "捌", "玖"]
 
@@ -230,7 +230,7 @@ def display_hero_status(stdscr, hero, previous_health, previous_stamina):
     y_pos = 7
 
     # Display the magical letters
-    stdscr.addstr(7, 0, f"Sequence: {hero.monster_defeat_streak} Collections:{hero.magical_letters_collections}")
+    stdscr.addstr(7, 0, f"連勝記録: {hero.monster_defeat_streak} コンプリート回数:{hero.magical_letters_collections}")
 
     # Loop through the magical letters pool
     for letter in magical_letters_pool:
@@ -291,40 +291,40 @@ def game_loop(hero, turns=10):
             if hero.explore():
                 monster = Monster()
                 initial_monster_health = monster.health  # Store the initial health
-                action_log.append(f"Encountered a monster (Health: {initial_monster_health}).")
+                action_log.append(f"モンスターに遭遇 (体力: {initial_monster_health}).")
                 if hero.fight(monster):
                     # Incorporate LUCK for collecting trophies
                     if random.random() < hero.LUCK / 40:
                         hero.collect_trophy(monster)
-                        action_log.append(f"Defeated the monster and collected a {monster.trophy} trophy. Gained {initial_monster_health} XP.")
-                    action_log.append(f"Gained {initial_monster_health} XP.")
+                        action_log.append(f"モンスターを倒し、{monster.trophy}を獲得した。")
+                    action_log.append(f"経験値{initial_monster_health}を獲得。")
                 else:
-                    action_log.append(f"Hero was defeated.")
+                    action_log.append(f"主人公はやられてしまった。")
             if hero.health <= 0.2 * hero.max_health:
                 health_before = hero.health
                 hero.rest_on_street()
                 health_restored = hero.health - health_before
-                action_log.append(f"Hero rested on the street and restored {health_restored} health.")
+                action_log.append(f"主人公は休んで体力を{health_restored} 回復した。")
         else:
-            action_log.append("Hero returned to town.")
+            action_log.append("主人公は街に帰った。")
             gold_from_trophies = town.sell_trophies(hero.trophies)
-            action_log.append(f"Sold trophies and earned {gold_from_trophies} gold.")
+            action_log.append(f"持ち物を売り、{gold_from_trophies}ゴールド獲得した。")
             hero.return_to_town(town)
             
             # Handling the equipment purchase
             hero.buy_equipment(town)
             if hero.weapon:
                 weapon_cost = hero.weapon.modifier * hero.weapon.modifier * Hero.EQUIPMENT_COST_MULTIPLIER
-                action_log.append(f"Bought a Weapon +{hero.weapon.modifier} for {weapon_cost} gold.")
+                action_log.append(f"武器 Weapon +{hero.weapon.modifier} を{weapon_cost}ゴールドで買った。")
             if hero.shield:
                 shield_cost = hero.shield.modifier * hero.shield.modifier * Hero.EQUIPMENT_COST_MULTIPLIER
-                action_log.append(f"Bought a Shield +{hero.shield.modifier} for {shield_cost} gold.")
+                action_log.append(f"防具 Shield +{hero.shield.modifier}を{shield_cost}ゴールドで買った.")
 
         
         while hero.experience >= hero.level * Hero.XP_MULTIPLIER:
             hero.experience -= hero.level * Hero.XP_MULTIPLIER
             hero.level_up()
-            action_log.append(f"Hero leveled up to level {hero.level}!")
+            action_log.append(f"主人公はレベルアップして　レベル {hero.level}になった!")
         
         # Display distance from town with + or - sign
         distance_display = f"+{hero.distance_from_town}" if hero.distance_from_town >= 0 else str(hero.distance_from_town)
