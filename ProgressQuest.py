@@ -7,10 +7,10 @@ class Hero:
 
 #ここあたりのパラメータをいじると楽しい。
     XP_MULTIPLIER = 300  # Define a constant multiplier for XP required for next level
-    DEFAULT_STR = 8
-    DEFAULT_VIT = 8
-    DEFAULT_ENDURANCE = 8
-    DEFAULT_LUCK = 8
+    DEFAULT_STR = 18
+    DEFAULT_VIT = 18
+    DEFAULT_ENDURANCE = 18
+    DEFAULT_LUCK = 18
     DEFAULT_DIRECTIONALSENSE = 8
     
     EQUIPMENT_COST_MULTIPLIER = 3  # New constant for equipment pricing formula
@@ -36,7 +36,10 @@ class Hero:
         self.quest_progress = 0  # in percentage
         self.weapon = None
         self.shield = None
-        
+        self.monster_defeat_streak = 0  # Counter for the number of monsters defeated in a row
+        self.magical_letters = set()  # Store the acquired magical letters
+        self.latest_magical_letter = None  # New attribute
+
     def explore(self):
         self.stamina -= 1
         # Use DirectionalSense to determine if the hero moves forward or backward
@@ -72,13 +75,30 @@ class Hero:
             monster.health -= damage_dealt
 
         victory = self.health > 0
+        # After the fight, if the hero won
         if victory:
-            self.experience += initial_monster_health
-            self.check_level_up()
+            self.monster_defeat_streak += 1
+            if self.monster_defeat_streak == 3:
+                self.acquire_magical_letter()
+                self.monster_defeat_streak = 0  # Reset the counter
+        else:
+            self.monster_defeat_streak = 0  # Reset the counter if the hero was defeated
+
         return victory
 
     def collect_trophy(self, monster):
         self.trophies.append(monster.trophy)
+
+    def acquire_magical_letter(self):
+        letters = ["壱", "弐", "参", "肆", "伍", "陸", "漆", "捌", "玖"]
+        acquired_letter = random.choice(letters)
+        self.magical_letters.add(acquired_letter)
+        # Update the latest_magical_letter attribute
+        self.latest_magical_letter =acquired_letter
+        # Check if the collection is complete
+        if len(self.magical_letters) == 9:
+            # Reward logic can go here...
+            self.magical_letters.clear()  # Reset the collection
 
     def return_to_town(self, town):
         self.distance_from_town = 0  # Reset the distance when returning to town
@@ -198,7 +218,27 @@ def display_hero_status(stdscr, hero, previous_health, previous_stamina):
     stdscr.addstr(4, 40, f"Sheild: {hero.shield} ")
     stdscr.addstr(5, 40, f"Quest: {hero.quest_progress}% ")
     stdscr.addstr(6, 0, f"Loots: {hero.trophies} ")
+    stdscr.addstr(6, 0, f"Loots: {hero.trophies} ")
+    # Display the magical letters
+    stdscr.addstr(7, 0, f"Sequence: {hero.monster_defeat_streak} Latest magical letter gain: {hero.latest_magical_letter}")
+    # Starting column for magical letters
+    col = 40
 
+    magical_letters_list = sorted(list(hero.magical_letters))
+    for letter in magical_letters_list:
+        # Display the letter in bold if it's the latest one
+        if letter == hero.latest_magical_letter:
+            stdscr.attron(curses.A_BOLD)
+            stdscr.addstr(8, col, letter)
+            stdscr.attroff(curses.A_BOLD)
+        else:
+            stdscr.addstr(8, col, letter)
+        col += len(letter)  # Update the column based on the length of the letter
+
+        # Add comma and space after each letter, except the last one
+        if letter != magical_letters_list[-1]:
+            stdscr.addstr(8, col, ', ')
+            col += 2  # Account for the comma and space
 
     return hero.health, hero.stamina  # Return current health for next comparison
 
@@ -316,7 +356,7 @@ def main(stdscr):
     previous_health = hero.health
     previous_stamina = hero.stamina
     
-    row = 7  # Starting row for game logs
+    row = 9  # Starting row for game logs
     while True:
         stdscr.clear()  # Clear the screen
         display_hero_status(stdscr, hero, previous_health, previous_stamina)
@@ -326,6 +366,14 @@ def main(stdscr):
         # Update previous_health and previous_stamina for the next iteration
         previous_health = hero.health
         previous_stamina = hero.stamina
+
+
+        # When a magical letter is acquired:
+        if hero.monster_defeat_streak == 3:
+            hero.monster_defeat_streak = 0
+            acquired_letter = random.choice(MAGICAL_LETTERS)
+            hero.magical_letters.add(acquired_letter)
+            hero.latest_magical_letter = acquired_letter  # Store the latest acquired letter
 
         # Advance one turn and append the results to log
         hero.current_turn += 1
@@ -353,12 +401,12 @@ def main(stdscr):
             break
         
         # Insert a delay so the game progresses at a reasonable pace
-        time.sleep(0.01)
+        time.sleep(0.1)
 
-        row = 7  # Reset row for next iteration
+        row = 9  # Reset row for next iteration
     
     stdscr.addstr(row, 0, "Thanks for playing!", curses.color_pair(1))
-    time.sleep(1.0)
+    time.sleep(5.0)
 
     stdscr.getch()  # Wait for one more key press before exiting
 
