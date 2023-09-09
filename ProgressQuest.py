@@ -39,6 +39,8 @@ class Hero:
         self.monster_defeat_streak = 0  # Counter for the number of monsters defeated in a row
         self.magical_letters = set()  # Store the acquired magical letters
         self.latest_magical_letter = None  # New attribute
+        self.magical_letters_collections = 0
+
 
     def explore(self):
         self.stamina -= 1
@@ -98,6 +100,7 @@ class Hero:
         # Check if the collection is complete
         if len(self.magical_letters) == 9:
             # Reward logic can go here...
+            self.magical_letters_collections += 1
             self.magical_letters.clear()  # Reset the collection
 
     def return_to_town(self, town):
@@ -219,26 +222,32 @@ def display_hero_status(stdscr, hero, previous_health, previous_stamina):
     stdscr.addstr(5, 40, f"Quest: {hero.quest_progress}% ")
     stdscr.addstr(6, 0, f"Loots: {hero.trophies} ")
     stdscr.addstr(6, 0, f"Loots: {hero.trophies} ")
+    # List of all possible magical letters in order
+    magical_letters_pool = ["壱", "弐", "参", "肆", "伍", "陸", "漆", "捌", "玖"]
+
+    # Display location
+    x_pos = 40
+    y_pos = 7
+
     # Display the magical letters
-    stdscr.addstr(7, 0, f"Sequence: {hero.monster_defeat_streak} Latest magical letter gain: {hero.latest_magical_letter}")
-    # Starting column for magical letters
-    col = 40
+    stdscr.addstr(7, 0, f"Sequence: {hero.monster_defeat_streak} Collections:{hero.magical_letters_collections}")
 
-    magical_letters_list = sorted(list(hero.magical_letters))
-    for letter in magical_letters_list:
-        # Display the letter in bold if it's the latest one
-        if letter == hero.latest_magical_letter:
-            stdscr.attron(curses.A_BOLD)
-            stdscr.addstr(8, col, letter)
-            stdscr.attroff(curses.A_BOLD)
+    # Loop through the magical letters pool
+    for letter in magical_letters_pool:
+        if letter in hero.magical_letters:
+            if letter == hero.latest_magical_letter:
+                stdscr.attron(curses.A_BOLD)
+                stdscr.addstr(y_pos, x_pos, letter)
+                stdscr.attroff(curses.A_BOLD)
+            else:
+                stdscr.addstr(y_pos, x_pos, letter)
         else:
-            stdscr.addstr(8, col, letter)
-        col += len(letter)  # Update the column based on the length of the letter
+            stdscr.addstr(y_pos, x_pos, '・')
+        
+        # Move to the next position (considering width of each character and the comma)
+        x_pos += len(letter.encode('utf-8')) + 2
+        stdscr.addstr(y_pos, x_pos - 2, ', ')
 
-        # Add comma and space after each letter, except the last one
-        if letter != magical_letters_list[-1]:
-            stdscr.addstr(8, col, ', ')
-            col += 2  # Account for the comma and space
 
     return hero.health, hero.stamina  # Return current health for next comparison
 
