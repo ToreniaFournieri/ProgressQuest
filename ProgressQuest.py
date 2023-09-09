@@ -14,6 +14,8 @@ class Hero:
     
     EQUIPMENT_COST_MULTIPLIER = 3  # New constant for equipment pricing formula
 
+    current_turn = 1
+
 
     def __init__(self, STR=DEFAULT_STR, VIT=DEFAULT_VIT, ENDURANCE=DEFAULT_ENDURANCE, LUCK=DEFAULT_LUCK, DIRECTIONALSENSE=DEFAULT_DIRECTIONALSENSE):
         self.level = 1
@@ -140,6 +142,9 @@ class Equipment:
     def is_broken(self):
         return self.duration <= 0
 
+    def __str__(self):  # Overriding the default string representation
+        return f"{self.name} +{self.modifier} ({self.duration})"
+
 def display_hero_status(stdscr, hero, previous_health, previous_stamina):
     # Clear the top portion of the screen for the status
     for i in range(5):
@@ -151,11 +156,15 @@ def display_hero_status(stdscr, hero, previous_health, previous_stamina):
     stamina_change = int(hero.stamina - previous_stamina)
     stamina_sign = "+" if stamina_change >= 0 else ""
 
-    stdscr.addstr(0, 0, "HERO")
+    stdscr.addstr(0, 0, f"HERO  Turn: {hero.current_turn} ")
     stdscr.addstr(1, 0, f"Health:   {hero.health}/{hero.max_health}   ({health_sign}{health_change})")
     stdscr.addstr(2, 0, f"Stamina:  {hero.stamina}/100 ({stamina_sign}{stamina_change})")
     stdscr.addstr(3, 0, f"Gold:     {hero.gold}")
     stdscr.addstr(4, 0, f"Distance: {hero.distance_from_town} km from town")
+    stdscr.addstr(2, 40, f"Weapon: {hero.weapon} ")
+    stdscr.addstr(3, 40, f"Sheild: {hero.shield} ")
+    stdscr.addstr(4, 40, f"Loots: {hero.trophies} ")
+
 
     return hero.health, hero.stamina  # Return current health for next comparison
 
@@ -185,8 +194,7 @@ class Town:
         return available_equipments if available_equipments else None
 
 # Game Loop
-def game_loop(turns=10):
-    hero = Hero()
+def game_loop(hero, turns=10):
     town = Town()
     log = []
 
@@ -266,6 +274,8 @@ def main(stdscr):
     stdscr.keypad(True)
     
     max_turns = 10000
+    LOG_DISPLAY_COUNT = 5
+
     
     stdscr.addstr(0, 0, "Welcome to Text-Based Progress Quest!", curses.color_pair(1))
     stdscr.addstr(2, 0, "Press any key to progress one turn or 'q' to quit.")
@@ -285,23 +295,29 @@ def main(stdscr):
     while True:
         stdscr.clear()  # Clear the screen
         display_hero_status(stdscr, hero, previous_health, previous_stamina)
-        
-        # Advance one turn and append the results to log
-        turn_actions = game_loop(1)
-        log.append(turn_actions[0])
-
-        # Display the last action
-        for line in log[-1][-1]:  # Taking the last element which is the action_log
-            stdscr.addstr(row, 0, line)
-            row += 1
-        row += 1
-
         stdscr.addstr(row, 0, "-------------------------------------------------------------------------------")
-        row += 1
+        row +=1
 
         # Update previous_health and previous_stamina for the next iteration
         previous_health = hero.health
         previous_stamina = hero.stamina
+
+
+        # Advance one turn and append the results to log
+        hero.current_turn += 1
+
+        turn_actions = game_loop(hero, 1)
+        log.append(turn_actions[0])
+
+        # Display the last n logs
+        for action_log in reversed(log[-LOG_DISPLAY_COUNT:]):
+            for line in action_log[-1]:
+                stdscr.addstr(row, 0, line)
+                row += 1
+            stdscr.addstr(row, 0, "--------------------------------")
+            row += 1
+        row += 1
+
         
         # Check for 'q' key to quit the game
         k = stdscr.getch()
