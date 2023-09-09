@@ -7,10 +7,10 @@ class Hero:
 
 #ここあたりのパラメータをいじると楽しい。
     XP_MULTIPLIER = 300  # Define a constant multiplier for XP required for next level
-    DEFAULT_STR = 8
-    DEFAULT_VIT = 8
-    DEFAULT_ENDURANCE = 8
-    DEFAULT_LUCK = 8
+    DEFAULT_STR = 18
+    DEFAULT_VIT = 18
+    DEFAULT_ENDURANCE = 18
+    DEFAULT_LUCK = 18
     DEFAULT_DIRECTIONALSENSE = 8
     
     EQUIPMENT_COST_MULTIPLIER = 3  # New constant for equipment pricing formula
@@ -40,6 +40,7 @@ class Hero:
         self.magical_letters = set()  # Store the acquired magical letters
         self.latest_magical_letter = None  # New attribute
         self.magical_letters_collections = 0
+        self.strong_weapon = None  # Initialize strong_weapon to None at the start
 
 
     def explore(self):
@@ -64,6 +65,8 @@ class Hero:
             # Apply weapon modifier and take Endurance into account for durability
             if self.weapon and not self.weapon.is_broken():
                 damage_dealt += self.weapon.use()
+                if self.strong_weapon:
+                    damage_dealt += self.strong_weapon.use()
                 if random.random() < self.ENDURANCE / 40:
                     self.weapon.duration += 1  # Revert the duration decrement
 
@@ -89,6 +92,38 @@ class Hero:
 
         return victory
 
+    def boss_fight(self, boss):
+        while self.health > 0 and boss.health > 0:
+            damage_dealt = random.randint(self.STR // 3, self.STR)
+            damage_taken = boss.attack()
+
+            # Apply weapon and shield modifiers, similar to the monster fight
+            if self.weapon and not self.weapon.is_broken():
+                damage_dealt += self.weapon.use()
+                if self.strong_weapon:
+                    damage_dealt += self.strong_weapon.use()
+                if random.random() < self.ENDURANCE / 40:
+                    self.weapon.duration += 1
+
+            if self.shield and not self.shield.is_broken():
+                damage_taken -= self.shield.use()
+                if random.random() < self.ENDURANCE / 40:
+                    self.shield.duration += 1
+
+            self.health -= max(damage_taken, 0)
+            boss.health -= damage_dealt
+
+        return self.health > 0  # Return True if hero won, otherwise False
+
+    def reward_strong_weapon(self):
+        modifiers = [1, 2, 3, 4, 5]
+        probabilities = [0.4, 0.3, 0.15, 0.1, 0.05]  # Adjust these probabilities as needed
+        chosen_modifier = random.choices(modifiers, probabilities)[0]
+
+        # Only replace the strong weapon if the new one has a higher modifier
+        if not self.strong_weapon or chosen_modifier > self.strong_weapon.modifier:
+            self.strong_weapon = Equipment("Strong Weapon", chosen_modifier)
+        
     def collect_trophy(self, monster):
         self.trophies.append(monster.trophy)
 
@@ -102,6 +137,20 @@ class Hero:
         if len(self.magical_letters) == 9:
             # Reward logic can go here...
             self.magical_letters_collections += 1
+            self.health += int(self.max_health * 0.33)  # Heal 33% of max health
+            # Check if a boss already exists and is not defeated, else create a new boss
+            if hasattr(self, 'current_boss') and self.current_boss.health > 0:
+                boss = self.current_boss
+            else:
+                boss = Boss(self)
+                self.current_boss = boss  # Store the current boss
+
+            victory = self.boss_fight(boss)
+            if victory:  # Check if the opponent is a boss
+                self.reward_strong_weapon()
+    
+                # Handle rewards or other actions here
+                delattr(self, 'current_boss')  # Remove the boss after defeating
             self.magical_letters.clear()  # Reset the collection
 
     def return_to_town(self, town):
@@ -177,20 +226,27 @@ class Hero:
         if self.shield and self.shield.duration == 0:
             self.shield = None
 
+
+
 class Equipment:
-    def __init__(self, name, modifier, duration):
+    def __init__(self, name, modifier, duration=None):
         self.name = name
         self.modifier = modifier
-        self.duration = duration
+        self.duration = duration  # Set to None for permanent equipment
+
 
     def use(self):
-        if self.duration > 0:
+        if self.duration is not None and self.duration > 0:
             self.duration -= 1
+            return self.modifier
+        elif self.duration is None:
             return self.modifier
         return 0
 
     def is_broken(self):
-        return self.duration <= 0
+        if self.duration is not None:
+            return self.duration <= 0
+        return False
 
     def __str__(self):  # Overriding the default string representation
         if self.is_broken():
@@ -200,9 +256,6 @@ class Equipment:
         
 
 def display_hero_status(stdscr, hero, previous_health, previous_stamina):
-    # Clear the top portion of the screen for the status
-    for i in range(5):
-        stdscr.addstr(i, 0, " " * 80)
 
     # Display hero status
     health_change = int(hero.health - previous_health)
@@ -218,7 +271,7 @@ def display_hero_status(stdscr, hero, previous_health, previous_stamina):
     stdscr.addstr(5, 0, f"街からの距離: {hero.distance_from_town} km")
     stdscr.addstr(2, 40, f"Level: {hero.level} ")
     stdscr.addstr(2, 60, f"経験値: {hero.experience} ({hero.experience_percentage():.1f}%)")
-    stdscr.addstr(3, 40, f"武器: {hero.weapon} ")
+    stdscr.addstr(3, 40, f"武器: {hero.weapon}  {hero.strong_weapon}")
     stdscr.addstr(4, 40, f"防具: {hero.shield} ")
     stdscr.addstr(5, 40, f"クエスト進捗: {hero.quest_progress}% ")
     stdscr.addstr(6, 0, f"所持品: {hero.trophies} ")
@@ -248,6 +301,9 @@ def display_hero_status(stdscr, hero, previous_health, previous_stamina):
         x_pos += len(letter.encode('utf-8')) + 2
         stdscr.addstr(y_pos, x_pos - 2, ', ')
 
+    # Check if the hero is currently challenging a boss
+    if hasattr(hero, 'current_boss') and hero.current_boss.health > 0:
+        stdscr.addstr(8, 0, f"ボスの体力: {hero.current_boss.health}/{hero.current_boss.initial_health}")
 
     return hero.health, hero.stamina  # Return current health for next comparison
 
@@ -259,6 +315,15 @@ class Monster:
 
     def attack(self):
         return random.randint(5, 10)
+
+# Define the Boss class
+class Boss:
+    def __init__(self, hero):
+        self.initial_health = random.randint(hero.max_health * 2, hero.max_health * 4)
+        self.health = self.initial_health
+
+    def attack(self):
+        return random.randint(15, 25)  # Example attack range
 
 # Define the Town class
 class Town:
@@ -410,7 +475,7 @@ def main(stdscr):
             break
         
         # Insert a delay so the game progresses at a reasonable pace
-        time.sleep(0.1)
+        time.sleep(0.01)
 
         row = 9  # Reset row for next iteration
     
