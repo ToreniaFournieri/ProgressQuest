@@ -126,7 +126,11 @@ class Hero:
         self.max_health = int(100 + self.VIT / 4 * self.level)
         self.health = self.max_health
         self.stamina += 1
-        
+
+    def experience_percentage(self):
+        required_for_next_level = self.level * Hero.XP_MULTIPLIER
+        return (self.experience / required_for_next_level) * 100
+
 class Equipment:
     def __init__(self, name, modifier, duration):
         self.name = name
@@ -161,9 +165,12 @@ def display_hero_status(stdscr, hero, previous_health, previous_stamina):
     stdscr.addstr(2, 0, f"Stamina:  {hero.stamina}/100 ({stamina_sign}{stamina_change})")
     stdscr.addstr(3, 0, f"Gold:     {hero.gold}")
     stdscr.addstr(4, 0, f"Distance: {hero.distance_from_town} km from town")
+    stdscr.addstr(1, 40, f"Level: {hero.level} ")
+    stdscr.addstr(1, 60, f"Experience: {hero.experience} ({hero.experience_percentage():.1f}%)")
     stdscr.addstr(2, 40, f"Weapon: {hero.weapon} ")
     stdscr.addstr(3, 40, f"Sheild: {hero.shield} ")
-    stdscr.addstr(4, 40, f"Loots: {hero.trophies} ")
+    stdscr.addstr(4, 40, f"Quest: {hero.quest_progress}% ")
+    stdscr.addstr(5, 0, f"Loots: {hero.trophies} ")
 
 
     return hero.health, hero.stamina  # Return current health for next comparison
@@ -291,7 +298,7 @@ def main(stdscr):
     previous_health = hero.health
     previous_stamina = hero.stamina
     
-    row = 5  # Starting row for game logs
+    row = 6  # Starting row for game logs
     while True:
         stdscr.clear()  # Clear the screen
         display_hero_status(stdscr, hero, previous_health, previous_stamina)
@@ -329,7 +336,7 @@ def main(stdscr):
             stdscr.getch()  # Wait for a key press
             break
         
-        row = 5  # Reset row for next iteration
+        row = 6  # Reset row for next iteration
     
     stdscr.addstr(row, 0, "Thanks for playing!", curses.color_pair(1))
     stdscr.getch()  # Wait for one more key press before exiting
