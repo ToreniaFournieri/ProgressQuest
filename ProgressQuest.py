@@ -80,7 +80,7 @@ class Hero:
 
     def return_to_town(self, town):
         self.distance_from_town = 0  # Reset the distance when returning to town
-
+        self.discard_broken_equipment()
         self.gold += town.sell_trophies(self.trophies)
         self.trophies = []
         self.eat(town)
@@ -131,6 +131,12 @@ class Hero:
         required_for_next_level = self.level * Hero.XP_MULTIPLIER
         return (self.experience / required_for_next_level) * 100
 
+    def discard_broken_equipment(self):
+        if self.weapon and self.weapon.duration == 0:
+            self.weapon = None
+        if self.shield and self.shield.duration == 0:
+            self.shield = None
+
 class Equipment:
     def __init__(self, name, modifier, duration):
         self.name = name
@@ -147,7 +153,11 @@ class Equipment:
         return self.duration <= 0
 
     def __str__(self):  # Overriding the default string representation
-        return f"{self.name} +{self.modifier} ({self.duration})"
+        if self.is_broken():
+            return f"{self.name} +{self.modifier} (broken)"
+        else:
+            return f"{self.name} +{self.modifier} ({self.duration})"
+        
 
 def display_hero_status(stdscr, hero, previous_health, previous_stamina):
     # Clear the top portion of the screen for the status
@@ -196,9 +206,7 @@ class Town:
             Equipment("Shield", i, 10 * i) for i in range(1, 6) if gold >= i * i * Hero.EQUIPMENT_COST_MULTIPLIER
         ]
         return available_equipments if available_equipments else None
-
         
-        return available_equipments if available_equipments else None
 
 # Game Loop
 def game_loop(hero, turns=10):
@@ -214,10 +222,13 @@ def game_loop(hero, turns=10):
                 initial_monster_health = monster.health  # Store the initial health
                 action_log.append(f"Encountered a monster (Health: {initial_monster_health}).")
                 if hero.fight(monster):
-                    action_log.append(f"Defeated the monster and collected a {monster.trophy} trophy. Gained {initial_monster_health} XP.")
-            # Incorporate LUCK for collecting trophies
-                if random.random() < hero.LUCK / 40:
-                    hero.collect_trophy(monster)
+                    # Incorporate LUCK for collecting trophies
+                    if random.random() < hero.LUCK / 40:
+                        hero.collect_trophy(monster)
+                        action_log.append(f"Defeated the monster and collected a {monster.trophy} trophy. Gained {initial_monster_health} XP.")
+                    action_log.append(f"Gained {initial_monster_health} XP.")
+                else:
+                    action_log.append(f"Hero was defeated.")
             if hero.health <= 0.2 * hero.max_health:
                 health_before = hero.health
                 hero.rest_on_street()
@@ -246,31 +257,14 @@ def game_loop(hero, turns=10):
         
         # Display distance from town with + or - sign
         distance_display = f"+{hero.distance_from_town}" if hero.distance_from_town >= 0 else str(hero.distance_from_town)
-        
+
         # Display equipment status
         weapon_status = f"W+{hero.weapon.modifier}({hero.weapon.duration})" if hero.weapon and not hero.weapon.is_broken() else "W(0)"
         shield_status = f"S+{hero.shield.modifier}({hero.shield.duration})" if hero.shield and not hero.shield.is_broken() else "S(0)"
-        
+
         log.append((f"{hero.health}/{hero.max_health}", hero.gold, hero.stamina, len(hero.trophies), distance_display, f"{hero.quest_progress}%", weapon_status, shield_status, action_log))
 
     return log
-
-'''
-# Running the game loop on terminal
-if __name__ == "__main__":
-
-    #ゲームの試行回数。数が多ければ多いほど進捗
-    game_actions_with_xp = game_loop(30000)
-
-    #ログとして見る分の内容。マイナスがついているのは、最後から何番目までのログを見るかを指定。全部見るとなると大変なため、最後の部分だけ表示させている
-    for action in game_actions_with_xp[-100:]:
-        print(action)
-'''
-
-# Note:
-#('今のHP/最大HP', Gold, スタミナ, 持ち物の数, 進捗(10を超えると+1%), クエスト進捗(%),
-# W武器(耐久値), S防具(耐久値), [ログの中身]
-#('38/176', 1, 32, 0, '+2', '44%', 'W(0)', 'S(0)', [])
 
 
 def main(stdscr):
