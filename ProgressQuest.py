@@ -92,14 +92,22 @@ class Hero:
     def buy_equipment(self, town):
         # Check gold and see what equipment is affordable
         affordable_equipments = town.buy_equipment(self.gold)
+        
         if affordable_equipments:
             chosen_equipment = random.choice(affordable_equipments)
             equipment_cost = chosen_equipment.modifier * chosen_equipment.modifier * Hero.EQUIPMENT_COST_MULTIPLIER
+            
             if chosen_equipment.name == "Weapon":
-                self.weapon = chosen_equipment
+                # Only replace the weapon if it's of a higher grade
+                if not self.weapon or chosen_equipment.modifier > self.weapon.modifier:
+                    self.weapon = chosen_equipment
+                    self.gold -= equipment_cost
+                    
             elif chosen_equipment.name == "Shield":
-                self.shield = chosen_equipment
-            self.gold -= equipment_cost
+                # Only replace the shield if it's of a higher grade
+                if not self.shield or chosen_equipment.modifier > self.shield.modifier:
+                    self.shield = chosen_equipment
+                    self.gold -= equipment_cost
 
     def eat(self, town):
         food_cost = 10
@@ -128,6 +136,12 @@ class Hero:
         self.max_health = int(100 + self.VIT / 4 * self.level)
         self.health = self.max_health
         self.stamina += 1
+        
+        # Randomly select a status to increase
+        statuses = ['STR', 'VIT', 'ENDURANCE', 'LUCK', 'DIRECTIONALSENSE']
+        selected_status = random.choice(statuses)
+        setattr(self, selected_status, getattr(self, selected_status) + 1)
+        
 
     def experience_percentage(self):
         required_for_next_level = self.level * Hero.XP_MULTIPLIER
@@ -173,16 +187,17 @@ def display_hero_status(stdscr, hero, previous_health, previous_stamina):
     stamina_sign = "+" if stamina_change >= 0 else ""
 
     stdscr.addstr(0, 0, f"HERO  Turn: {hero.current_turn} ")
-    stdscr.addstr(1, 0, f"Health:   {hero.health}/{hero.max_health}   ({health_sign}{health_change})")
-    stdscr.addstr(2, 0, f"Stamina:  {hero.stamina}/100 ({stamina_sign}{stamina_change})")
-    stdscr.addstr(3, 0, f"Gold:     {hero.gold}")
-    stdscr.addstr(4, 0, f"Distance: {hero.distance_from_town} km from town")
-    stdscr.addstr(1, 40, f"Level: {hero.level} ")
-    stdscr.addstr(1, 60, f"Experience: {hero.experience} ({hero.experience_percentage():.1f}%)")
-    stdscr.addstr(2, 40, f"Weapon: {hero.weapon} ")
-    stdscr.addstr(3, 40, f"Sheild: {hero.shield} ")
-    stdscr.addstr(4, 40, f"Quest: {hero.quest_progress}% ")
-    stdscr.addstr(5, 0, f"Loots: {hero.trophies} ")
+    stdscr.addstr(1, 0, f"STR:{hero.STR}, VIT:{hero.VIT}, LUCK:{hero.LUCK}, ENDURANCE:{hero.ENDURANCE}, DIRECTIONALSENSE:{hero.DIRECTIONALSENSE}  ")
+    stdscr.addstr(2, 0, f"Health:   {hero.health}/{hero.max_health}   ({health_sign}{health_change})")
+    stdscr.addstr(3, 0, f"Stamina:  {hero.stamina}/100 ({stamina_sign}{stamina_change})")
+    stdscr.addstr(4, 0, f"Gold:     {hero.gold}")
+    stdscr.addstr(5, 0, f"Distance: {hero.distance_from_town} km from town")
+    stdscr.addstr(2, 40, f"Level: {hero.level} ")
+    stdscr.addstr(2, 60, f"Experience: {hero.experience} ({hero.experience_percentage():.1f}%)")
+    stdscr.addstr(3, 40, f"Weapon: {hero.weapon} ")
+    stdscr.addstr(4, 40, f"Sheild: {hero.shield} ")
+    stdscr.addstr(5, 40, f"Quest: {hero.quest_progress}% ")
+    stdscr.addstr(6, 0, f"Loots: {hero.trophies} ")
 
 
     return hero.health, hero.stamina  # Return current health for next comparison
@@ -207,7 +222,12 @@ class Town:
         ] + [
             Equipment("Shield", i, Hero.EQUIPMENT_DURATION * i) for i in range(1, 6) if gold >= i * i * Hero.EQUIPMENT_COST_MULTIPLIER
         ]
+        
+        # Sort available equipment by modifier in descending order
+        available_equipments.sort(key=lambda equipment: equipment.modifier, reverse=True)
+        
         return available_equipments if available_equipments else None
+
         
 
 # Game Loop
@@ -296,7 +316,7 @@ def main(stdscr):
     previous_health = hero.health
     previous_stamina = hero.stamina
     
-    row = 6  # Starting row for game logs
+    row = 7  # Starting row for game logs
     while True:
         stdscr.clear()  # Clear the screen
         display_hero_status(stdscr, hero, previous_health, previous_stamina)
@@ -333,9 +353,9 @@ def main(stdscr):
             break
         
         # Insert a delay so the game progresses at a reasonable pace
-        time.sleep(0.2)
+        time.sleep(0.01)
 
-        row = 6  # Reset row for next iteration
+        row = 7  # Reset row for next iteration
     
     stdscr.addstr(row, 0, "Thanks for playing!", curses.color_pair(1))
     time.sleep(1.0)
