@@ -333,7 +333,7 @@ def display_hero_status(stdscr, hero, previous_health, previous_stamina):
     
     zone_name = ZONE_TABLE.get(hero.zone, "Unknown Zone")
 
-    stdscr.addstr(5, 0, f"{zone_name} 街からの距離: {hero.distance_from_town} km ")
+    stdscr.addstr(5, 0, f"エリア:{zone_name} ({hero.distance_from_town} km) ")
     stdscr.addstr(2, 40, f"Level: {hero.level} ")
     stdscr.addstr(2, 60, f"経験値: {hero.experience} ({hero.experience_percentage():.1f}%)")
     stdscr.addstr(3, 40, f"武器: {hero.weapon}  {hero.strong_weapon}")
