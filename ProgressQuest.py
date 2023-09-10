@@ -280,10 +280,11 @@ class Hero:
 
 
 class Equipment:
-    def __init__(self, equipment_type, modifier, duration):
+    def __init__(self, equipment_type, modifier, duration=None, prefix=""):
         self.modifier = modifier
         self.duration = duration
         self.equipment_type = equipment_type
+        self.prefix = prefix
         if equipment_type == "Weapon":
             self.name = random.choice(WEAPON_TYPES)
             self.prefix = random.choice(WEAPON_PREFIXES) if random.random() < 0.01 else ""
@@ -373,6 +374,9 @@ def display_hero_status(stdscr, hero, previous_health, previous_stamina):
     # Display special logs
     special_log_row = 9  # start at row 15, for example
     stdscr.addstr(special_log_row, 60, "特別なログ:")
+    if len(hero.special_logs) > 5:
+        hero.special_logs = hero.special_logs[-5:]  # Keep only the latest 5 logs
+    
     special_log_row += 1
     for log in reversed(hero.special_logs):
         stdscr.addstr(special_log_row, 60, log)
@@ -551,13 +555,17 @@ def main(stdscr):
         if k == ord('q'):
             break
 
+        if k == ord('a'):
+            time.sleep(5.01)
+
+
         if len(log) >= max_turns:
             stdscr.addstr(row, 0, "Game Over. Press 'q' to quit.")
             stdscr.getch()  # Wait for a key press
             break
         
         # Insert a delay so the game progresses at a reasonable pace
-        time.sleep(0.3)
+        time.sleep(0.01)
 
         row = 9  # Reset row for next iteration
     
