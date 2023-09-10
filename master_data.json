@@ -1,0 +1,29 @@
+{
+    "WEAPON_PREFIXES": ["Fire", "Ice", "Thunder", "Venomous", "Demonic", "Sacred", "Mystical", "Vengeful", "Cursed", "Fabled"],
+    "ZONE_TABLE": {
+        "1": "Peaceful Plains",
+        "2": "Misty Forest",
+        "3": "River",
+        "4": "Ruins",
+        "5": "Dragon's Lair"
+    },
+    "ZONE_MONSTERS": {
+        "1": [
+            ["Goblin", 20, 5, 0, "Goblin Ear", 5],
+            ["Slime", 15, 3, 0, "Slime Gel", 3]
+        ],
+        "2": [
+            ["Orc", 40, 8, 1, "Orc Tusk", 8],
+            ["Wolf", 35, 7, 1, "Wolf Fur", 6]
+        ],
+        "3": [
+            ["Troll", 60, 10, 2, "Troll Nose", 10],
+            ["Giant Spider", 55, 9, 2, "Spider Silk", 9]
+        ],
+        "4": [
+            ["Dragon", 100, 20, 4, "Dragon Scale", 40]
+        ]
+    },
+    "WEAPON_TYPES": ["Dagger", "Sword", "Axe", "Bow"],
+    "SHIELD_TYPES": ["Buckler", "Kite Shield", "Tower Shield"]
+}

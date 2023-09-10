@@ -2,17 +2,21 @@ import random
 import curses
 import time
 
-WEAPON_PREFIXES = ["Fire", "Ice", "Thunder", "Venomous", "Demonic", "Sacred", "Mystical", "Vengeful", "Cursed", "Fabled"]
-ZONE_TABLE = {
-    1: "Peaceful Plains",
-    2: "Misty Forest",
-    3: "River",
-    4: "Ruins",
-    5: "Dragon's Lair",
-    # Add more zones as needed
-}
-WEAPON_TYPES = ["Dagger", "Sword", "Axe", "Bow"]
-SHIELD_TYPES = ["Buckler", "Kite Shield", "Tower Shield"]
+import json
+
+# Load the master data from the JSON file
+with open('master_data.json', 'r') as file:
+    master_data = json.load(file)
+
+# Extract individual data pieces
+WEAPON_PREFIXES = master_data["WEAPON_PREFIXES"]
+ZONE_TABLE = {int(key): value for key, value in master_data["ZONE_TABLE"].items()}
+ZONE_MONSTERS = {int(key): value for key, value in master_data["ZONE_MONSTERS"].items()}
+WEAPON_TYPES = master_data["WEAPON_TYPES"]
+SHIELD_TYPES = master_data["SHIELD_TYPES"]
+
+
+
 
 
 
@@ -378,15 +382,8 @@ def display_hero_status(stdscr, hero, previous_health, previous_stamina):
 
 # Define the Monster class
 class Monster:
-    # Define different zones of monsters
-    ZONE_MONSTERS = {
-        1: [("Goblin", 20, 5, 0, "Goblin Ear", 5), ("Slime", 15, 3, 0, "Slime Gel", 3)],
-        2: [("Orc", 40, 8, 1, "Orc Tusk", 8), ("Wolf", 35, 7, 1, "Wolf Fur", 6)],
-        3: [("Troll", 60, 10, 2, "Troll Nose", 10), ("Giant Spider", 55, 9, 2, "Spider Silk", 9)],
-        4: [("Dragon", 100, 20, 4, "Dragon Scale", 40)]
-    }
     def __init__(self, zone=1):
-        monster_type, self.health, self.attack_power, self.defense, self.trophy, self.trophy_value = random.choice(self.ZONE_MONSTERS[zone])
+        monster_type, self.health, self.attack_power, self.defense, self.trophy, self.trophy_value = random.choice(ZONE_MONSTERS[zone])
         self.name = monster_type
 
     def attack(self):
