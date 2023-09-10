@@ -2,6 +2,8 @@ import random
 import curses
 import time
 
+WEAPON_PREFIXES = ["Fire", "Ice", "Thunder", "Venomous", "Demonic", "Sacred", "Mystical", "Vengeful", "Cursed", "Fabled"]
+
 # Define the Hero class
 class Hero:
 
@@ -188,13 +190,13 @@ class Hero:
             chosen_equipment = random.choice(affordable_equipments)
             equipment_cost = chosen_equipment.modifier * chosen_equipment.modifier * Hero.EQUIPMENT_COST_MULTIPLIER
             
-            if chosen_equipment.name == "Weapon":
+            if chosen_equipment.equipment_type == "Weapon":
                 # Only replace the weapon if it's of a higher grade
                 if not self.weapon or chosen_equipment.modifier > self.weapon.modifier:
                     self.weapon = chosen_equipment
                     self.gold -= equipment_cost
                     
-            elif chosen_equipment.name == "Shield":
+            elif chosen_equipment.equipment_type == "Shield":
                 # Only replace the shield if it's of a higher grade
                 if not self.shield or chosen_equipment.modifier > self.shield.modifier:
                     self.shield = chosen_equipment
@@ -247,11 +249,18 @@ class Hero:
 
 
 class Equipment:
-    def __init__(self, name, modifier, duration=None):
-        self.name = name
+    WEAPON_TYPES = ["Dagger", "Sword", "Axe", "Bow"]
+    SHIELD_TYPES = ["Buckler", "Kite Shield", "Tower Shield"]
+    def __init__(self, equipment_type, modifier, duration):
         self.modifier = modifier
-        self.duration = duration  # Set to None for permanent equipment
-
+        self.duration = duration
+        self.equipment_type = equipment_type
+        if equipment_type == "Weapon":
+            self.name = random.choice(Equipment.WEAPON_TYPES)
+            self.prefix = random.choice(WEAPON_PREFIXES) if random.random() < 0.01 else ""
+        else:
+            self.name = random.choice(Equipment.SHIELD_TYPES)
+            self.prefix = ""
 
     def use(self):
         if self.duration is not None and self.duration > 0:
@@ -268,10 +277,16 @@ class Equipment:
 
     def __str__(self):  # Overriding the default string representation
         if self.is_broken():
-            return f"{self.name} +{self.modifier} (破損)"
+            if self.prefix:
+                return f"{self.prefix} {self.name} +{self.modifier} (破損)"
+            else:
+                return f"{self.name} +{self.modifier} (破損)"
+
         else:
-            return f"{self.name} +{self.modifier} ({self.duration})"
-        
+            if self.prefix:
+                return f"{self.prefix} {self.name} +{self.modifier} ({self.duration})"
+            else:
+                return f"{self.name} +{self.modifier} ({self.duration})"
 
 def display_hero_status(stdscr, hero, previous_health, previous_stamina):
 
@@ -358,13 +373,18 @@ class Town:
         return sum(prices[trophy] for trophy in trophies)
     def buy_equipment(self, gold):
         available_equipments = [
-            Equipment("Weapon", i, Hero.EQUIPMENT_DURATION * i) for i in range(1, 20) if gold >= i * i * Hero.EQUIPMENT_COST_MULTIPLIER
+            Equipment("Weapon", i, Hero.EQUIPMENT_DURATION * i)
+            for i in range(1, 6)
+            if gold >= i * i * Hero.EQUIPMENT_COST_MULTIPLIER
         ] + [
-            Equipment("Shield", i, Hero.EQUIPMENT_DURATION * i) for i in range(1, 20) if gold >= i * i * Hero.EQUIPMENT_COST_MULTIPLIER
+            Equipment("Shield", i, Hero.EQUIPMENT_DURATION * i)
+            for i in range(1, 6)
+            if gold >= i * i * Hero.EQUIPMENT_COST_MULTIPLIER
         ]
         
         # Sort available equipment by modifier in descending order
         available_equipments.sort(key=lambda equipment: equipment.modifier, reverse=True)
+    
         
         return available_equipments if available_equipments else None
 
@@ -501,7 +521,7 @@ def main(stdscr):
             break
         
         # Insert a delay so the game progresses at a reasonable pace
-        time.sleep(0.01)
+        time.sleep(0.1)
 
         row = 9  # Reset row for next iteration
     
