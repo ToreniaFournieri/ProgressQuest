@@ -157,7 +157,8 @@ class Hero:
             self.strong_weapon = Equipment("Strong Weapon", chosen_modifier)
         
     def collect_trophy(self, monster):
-        self.trophies.append(monster.trophy)
+        self.trophies.append((monster.trophy, monster.trophy_value))
+
 
     def acquire_magical_letter(self):
         letters = ["壱", "弐", "参", "肆", "伍", "陸", "漆", "捌", "玖"]
@@ -324,7 +325,7 @@ def display_hero_status(stdscr, hero, previous_health, previous_stamina):
     stdscr.addstr(1, 0, f"力:{hero.STR}, 体力:{hero.VIT}, 運:{hero.LUCK}, 熟練:{hero.ENDURANCE}, 方向感覚:{hero.DIRECTIONALSENSE}  ")
     stdscr.addstr(2, 0, f"体力:   {hero.health}/{hero.max_health}   ({health_sign}{health_change})")
     stdscr.addstr(3, 0, f"スタミナ:  {hero.stamina}/100 ({stamina_sign}{stamina_change})")
-    stdscr.addstr(4, 0, f"お金:     {hero.gold}")
+    stdscr.addstr(4, 0, f"お金:  {hero.gold}")
     
     zone_name = ZONE_TABLE.get(hero.zone, "Unknown Zone")
 
@@ -334,7 +335,7 @@ def display_hero_status(stdscr, hero, previous_health, previous_stamina):
     stdscr.addstr(3, 40, f"武器: {hero.weapon}  {hero.strong_weapon}")
     stdscr.addstr(4, 40, f"防具: {hero.shield} ")
     stdscr.addstr(5, 40, f"クエスト進捗: {hero.quest_progress}% ")
-    stdscr.addstr(6, 0, f"所持品: {hero.trophies} ")
+    stdscr.addstr(6, 0, f"所持品: {[trophy_name for trophy_name, _ in hero.trophies]} ")
     # List of all possible magical letters in order
     magical_letters_pool = ["壱", "弐", "参", "肆", "伍", "陸", "漆", "捌", "玖"]
 
@@ -379,15 +380,14 @@ def display_hero_status(stdscr, hero, previous_health, previous_stamina):
 class Monster:
     # Define different zones of monsters
     ZONE_MONSTERS = {
-        1: [("Goblin", 20, 5, 0), ("Slime", 15, 3, 0)],
-        2: [("Orc", 40, 8, 1), ("Wolf", 35, 7, 1)],
-        3: [("Troll", 60, 10, 2), ("Giant Spider", 55, 9, 2)],
-        4: [("Dragon", 100, 20, 4)]
+        1: [("Goblin", 20, 5, 0, "Goblin Ear", 5), ("Slime", 15, 3, 0, "Slime Gel", 3)],
+        2: [("Orc", 40, 8, 1, "Orc Tusk", 8), ("Wolf", 35, 7, 1, "Wolf Fur", 6)],
+        3: [("Troll", 60, 10, 2, "Troll Nose", 10), ("Giant Spider", 55, 9, 2, "Spider Silk", 9)],
+        4: [("Dragon", 100, 20, 4, "Dragon Scale", 40)]
     }
     def __init__(self, zone=1):
-        monster_type, self.health, self.attack_power, self.defense = random.choice(self.ZONE_MONSTERS[zone])
+        monster_type, self.health, self.attack_power, self.defense, self.trophy, self.trophy_value = random.choice(self.ZONE_MONSTERS[zone])
         self.name = monster_type
-        self.trophy = random.choice(['Claw', 'Fang', 'Hide', 'Bone'])
 
     def attack(self):
         return random.randint(self.attack_power // 2, self.attack_power)
@@ -407,8 +407,7 @@ class Boss:
 # Define the Town class
 class Town:
     def sell_trophies(self, trophies):
-        prices = {'Claw': 5, 'Fang': 7, 'Hide': 10, 'Bone': 3}
-        return sum(prices[trophy] for trophy in trophies)
+        return sum(value for name, value in trophies)
     def buy_equipment(self, gold):
         available_equipments = [
             Equipment("Weapon", i, Hero.EQUIPMENT_DURATION * i)
