@@ -7,10 +7,10 @@ class Hero:
 
 #ここあたりのパラメータをいじると楽しい。
     XP_MULTIPLIER = 300  # Define a constant multiplier for XP required for next level
-    DEFAULT_STR = 18
-    DEFAULT_VIT = 18
-    DEFAULT_ENDURANCE = 18
-    DEFAULT_LUCK = 18
+    DEFAULT_STR = 8
+    DEFAULT_VIT = 8
+    DEFAULT_ENDURANCE = 8
+    DEFAULT_LUCK = 8
     DEFAULT_DIRECTIONALSENSE = 8
     
     EQUIPMENT_COST_MULTIPLIER = 3  # New constant for equipment pricing formula
@@ -41,6 +41,8 @@ class Hero:
         self.latest_magical_letter = None  # New attribute
         self.magical_letters_collections = 0
         self.strong_weapon = None  # Initialize strong_weapon to None at the start
+
+        self.special_logs = []  # New attribute for storing special logs
 
 
     def explore(self):
@@ -76,8 +78,9 @@ class Hero:
                 if random.random() < self.ENDURANCE / 40:
                     self.shield.duration += 1  # Revert the duration decrement
 
-            self.health -= max(damage_taken, 0)
             monster.health -= damage_dealt
+            if monster.health > 0:  # Only subtract damage from hero if boss is still alive
+                self.health -= max(damage_taken, 0)
 
         victory = self.health > 0
         # After the fight, if the hero won
@@ -110,14 +113,15 @@ class Hero:
                 if random.random() < self.ENDURANCE / 40:
                     self.shield.duration += 1
 
-            self.health -= max(damage_taken, 0)
             boss.health -= damage_dealt
+            if boss.health > 0:  # Only subtract damage from hero if boss is still alive
+                self.health -= max(damage_taken, 0)
 
         return self.health > 0  # Return True if hero won, otherwise False
 
     def reward_strong_weapon(self):
         modifiers = [1, 2, 3, 4, 5]
-        probabilities = [0.4, 0.3, 0.15, 0.1, 0.05]  # Adjust these probabilities as needed
+        probabilities = [0.7, 0.26, 0.03, 0.009, 0.001]  # Adjust these probabilities as needed
         chosen_modifier = random.choices(modifiers, probabilities)[0]
 
         # Only replace the strong weapon if the new one has a higher modifier
@@ -147,10 +151,24 @@ class Hero:
 
             victory = self.boss_fight(boss)
             if victory:  # Check if the opponent is a boss
+                # Before rewarding the hero, store the current modifier of the strong_weapon (if it exists).
+                previous_strong_weapon_modifier = None
+                if self.strong_weapon:
+                    previous_strong_weapon_modifier = self.strong_weapon.modifier
                 self.reward_strong_weapon()
-    
+
+                # Check if a new weapon was acquired or the old one was retained
+                if previous_strong_weapon_modifier == self.strong_weapon.modifier:
+                    self.special_logs.append(f"主人公はボスを倒した！")
+                else:
+                    self.special_logs.append(f"主人公はボスを倒し、Strong Weapon +{self.strong_weapon.modifier} を獲得!")
+                        
+                if len(self.special_logs) > 5:
+                    self.special_logs.pop(0)  # Remove the oldest log if there are more than 5
                 # Handle rewards or other actions here
                 delattr(self, 'current_boss')  # Remove the boss after defeating
+            else:
+                self.special_logs.append(f"主人公はボスに挑んだ。ボスの残り体力{self.current_boss.health}/{self.current_boss.max_health}。")
             self.magical_letters.clear()  # Reset the collection
 
     def return_to_town(self, town):
@@ -303,7 +321,15 @@ def display_hero_status(stdscr, hero, previous_health, previous_stamina):
 
     # Check if the hero is currently challenging a boss
     if hasattr(hero, 'current_boss') and hero.current_boss.health > 0:
-        stdscr.addstr(8, 0, f"ボスの体力: {hero.current_boss.health}/{hero.current_boss.initial_health}")
+        stdscr.addstr(8, 0, f"ボスの体力: {hero.current_boss.health}/{hero.current_boss.max_health}")
+
+    # Display special logs
+    special_log_row = 9  # start at row 15, for example
+    stdscr.addstr(special_log_row, 60, "特別なログ:")
+    special_log_row += 1
+    for log in reversed(hero.special_logs):
+        stdscr.addstr(special_log_row, 60, log)
+        special_log_row += 1
 
     return hero.health, hero.stamina  # Return current health for next comparison
 
@@ -319,8 +345,8 @@ class Monster:
 # Define the Boss class
 class Boss:
     def __init__(self, hero):
-        self.initial_health = random.randint(hero.max_health * 2, hero.max_health * 4)
-        self.health = self.initial_health
+        self.max_health = random.randint(hero.max_health * 2, hero.max_health * 4)
+        self.health = self.max_health
 
     def attack(self):
         return random.randint(15, 25)  # Example attack range
@@ -332,9 +358,9 @@ class Town:
         return sum(prices[trophy] for trophy in trophies)
     def buy_equipment(self, gold):
         available_equipments = [
-            Equipment("Weapon", i, Hero.EQUIPMENT_DURATION * i) for i in range(1, 6) if gold >= i * i * Hero.EQUIPMENT_COST_MULTIPLIER
+            Equipment("Weapon", i, Hero.EQUIPMENT_DURATION * i) for i in range(1, 20) if gold >= i * i * Hero.EQUIPMENT_COST_MULTIPLIER
         ] + [
-            Equipment("Shield", i, Hero.EQUIPMENT_DURATION * i) for i in range(1, 6) if gold >= i * i * Hero.EQUIPMENT_COST_MULTIPLIER
+            Equipment("Shield", i, Hero.EQUIPMENT_DURATION * i) for i in range(1, 20) if gold >= i * i * Hero.EQUIPMENT_COST_MULTIPLIER
         ]
         
         # Sort available equipment by modifier in descending order
@@ -434,7 +460,7 @@ def main(stdscr):
     while True:
         stdscr.clear()  # Clear the screen
         display_hero_status(stdscr, hero, previous_health, previous_stamina)
-        stdscr.addstr(row, 0, "-------------------------------------------------------------------------------")
+        stdscr.addstr(row, 0, "----------------------------------------------")
         row +=1
 
         # Update previous_health and previous_stamina for the next iteration
