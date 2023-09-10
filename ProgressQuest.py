@@ -3,6 +3,18 @@ import curses
 import time
 
 WEAPON_PREFIXES = ["Fire", "Ice", "Thunder", "Venomous", "Demonic", "Sacred", "Mystical", "Vengeful", "Cursed", "Fabled"]
+ZONE_TABLE = {
+    1: "Peaceful Plains",
+    2: "Misty Forest",
+    3: "River",
+    4: "Ruins",
+    5: "Dragon's Lair",
+    # Add more zones as needed
+}
+WEAPON_TYPES = ["Dagger", "Sword", "Axe", "Bow"]
+SHIELD_TYPES = ["Buckler", "Kite Shield", "Tower Shield"]
+
+
 
 # Define the Hero class
 class Hero:
@@ -35,6 +47,7 @@ class Hero:
         self.gold = 0
         self.trophies = []
         self.distance_from_town = 0  # in kilometers
+        self.zone = 1
         self.quest_progress = 0  # in percentage
         self.weapon = None
         self.shield = None
@@ -58,8 +71,19 @@ class Hero:
         if self.distance_from_town == 10:
             self.quest_progress += 1
             self.distance_from_town = 0  # Reset the distance after gaining progress
-        return random.choice([True, False])
+        # Determine the zone based on distance_from_town
+        if self.distance_from_town < 3:
+            zone = 1
+        elif self.distance_from_town < 6:
+            zone = 2
+        elif self.distance_from_town < 9:
+            zone = 3
+        else:
+            zone = 4
 
+        monster_encounter = random.choice([True, False])
+        return monster_encounter, zone
+    
     def fight(self, monster):
         initial_monster_health = monster.health
         while self.health > 0 and monster.health > 0:
@@ -80,9 +104,11 @@ class Hero:
                 if random.random() < self.ENDURANCE / 40:
                     self.shield.duration += 1  # Revert the duration decrement
 
-            monster.health -= damage_dealt
+            # Adjust damage dealt by monster's defense
+            effective_damage_dealt = monster.defend(damage_dealt)
+            monster.health -= max(effective_damage_dealt, 1)
             if monster.health > 0:  # Only subtract damage from hero if boss is still alive
-                self.health -= max(damage_taken, 0)
+                self.health -= max(damage_taken, 1)
 
         victory = self.health > 0
         # After the fight, if the hero won
@@ -249,17 +275,15 @@ class Hero:
 
 
 class Equipment:
-    WEAPON_TYPES = ["Dagger", "Sword", "Axe", "Bow"]
-    SHIELD_TYPES = ["Buckler", "Kite Shield", "Tower Shield"]
     def __init__(self, equipment_type, modifier, duration):
         self.modifier = modifier
         self.duration = duration
         self.equipment_type = equipment_type
         if equipment_type == "Weapon":
-            self.name = random.choice(Equipment.WEAPON_TYPES)
+            self.name = random.choice(WEAPON_TYPES)
             self.prefix = random.choice(WEAPON_PREFIXES) if random.random() < 0.01 else ""
         else:
-            self.name = random.choice(Equipment.SHIELD_TYPES)
+            self.name = random.choice(SHIELD_TYPES)
             self.prefix = ""
 
     def use(self):
@@ -301,7 +325,10 @@ def display_hero_status(stdscr, hero, previous_health, previous_stamina):
     stdscr.addstr(2, 0, f"体力:   {hero.health}/{hero.max_health}   ({health_sign}{health_change})")
     stdscr.addstr(3, 0, f"スタミナ:  {hero.stamina}/100 ({stamina_sign}{stamina_change})")
     stdscr.addstr(4, 0, f"お金:     {hero.gold}")
-    stdscr.addstr(5, 0, f"街からの距離: {hero.distance_from_town} km")
+    
+    zone_name = ZONE_TABLE.get(hero.zone, "Unknown Zone")
+
+    stdscr.addstr(5, 0, f"{zone_name} 街からの距離: {hero.distance_from_town} km ")
     stdscr.addstr(2, 40, f"Level: {hero.level} ")
     stdscr.addstr(2, 60, f"経験値: {hero.experience} ({hero.experience_percentage():.1f}%)")
     stdscr.addstr(3, 40, f"武器: {hero.weapon}  {hero.strong_weapon}")
@@ -350,12 +377,23 @@ def display_hero_status(stdscr, hero, previous_health, previous_stamina):
 
 # Define the Monster class
 class Monster:
-    def __init__(self):
-        self.health = random.randint(20, 60)
+    # Define different zones of monsters
+    ZONE_MONSTERS = {
+        1: [("Goblin", 20, 5, 0), ("Slime", 15, 3, 0)],
+        2: [("Orc", 40, 8, 1), ("Wolf", 35, 7, 1)],
+        3: [("Troll", 60, 10, 2), ("Giant Spider", 55, 9, 2)],
+        4: [("Dragon", 100, 20, 4)]
+    }
+    def __init__(self, zone=1):
+        monster_type, self.health, self.attack_power, self.defense = random.choice(self.ZONE_MONSTERS[zone])
+        self.name = monster_type
         self.trophy = random.choice(['Claw', 'Fang', 'Hide', 'Bone'])
 
     def attack(self):
-        return random.randint(5, 10)
+        return random.randint(self.attack_power // 2, self.attack_power)
+
+    def defend(self, damage):
+        return max(damage - self.defense, 1)
 
 # Define the Boss class
 class Boss:
@@ -399,18 +437,20 @@ def game_loop(hero, turns=10):
         action_log = []
 
         if hero.stamina > 20:
-            if hero.explore():
-                monster = Monster()
+            monster_encounter, zone = hero.explore()
+            hero.zone = zone
+            if monster_encounter:
+                monster = Monster(zone)
                 initial_monster_health = monster.health  # Store the initial health
-                action_log.append(f"モンスターに遭遇 (体力: {initial_monster_health}).")
+                action_log.append(f"{monster.name}に遭遇 (体力: {initial_monster_health}).")
                 if hero.fight(monster):
                     # Incorporate LUCK for collecting trophies
                     if random.random() < hero.LUCK / 40:
                         hero.collect_trophy(monster)
-                        action_log.append(f"モンスターを倒し、{monster.trophy}を獲得した。")
+                        action_log.append(f"{monster.name}を倒し、{monster.trophy}を獲得した。")
                     action_log.append(f"経験値{initial_monster_health}を獲得。")
                 else:
-                    action_log.append(f"主人公はやられてしまった。")
+                    action_log.append(f"主人公は{monster.name}にやられてしまった。")
             if hero.health <= 0.2 * hero.max_health:
                 health_before = hero.health
                 hero.rest_on_street()
@@ -521,7 +561,7 @@ def main(stdscr):
             break
         
         # Insert a delay so the game progresses at a reasonable pace
-        time.sleep(0.1)
+        time.sleep(0.3)
 
         row = 9  # Reset row for next iteration
     
