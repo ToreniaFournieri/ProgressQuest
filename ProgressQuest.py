@@ -436,7 +436,7 @@ def game_loop(hero, turns=10):
     for _ in range(turns):
         action_log = []
 
-        if hero.stamina > 20:
+        if hero.stamina > 10:
             monster_encounter, zone = hero.explore()
             hero.zone = zone
             if monster_encounter:
@@ -496,7 +496,6 @@ def main(stdscr):
     stdscr.nodelay(0)  # Wait for user input
     stdscr.keypad(True)
     
-    max_turns = 90000
     LOG_DISPLAY_COUNT = 5
 
     stdscr.addstr(0, 0, "Welcome to Text-Based Progress Quest!", curses.color_pair(1))
@@ -504,7 +503,7 @@ def main(stdscr):
     stdscr.nodelay(1)  # Don't wait for user input
     stdscr.addstr(2, 0, "The game progresses automatically. Press 'q' to quit at any time.")
 
-    
+    GameSpeed = 1.0
     
     
     # Initialize game
@@ -556,16 +555,14 @@ def main(stdscr):
             break
 
         if k == ord('a'):
-            time.sleep(5.01)
-
-
-        if len(log) >= max_turns:
-            stdscr.addstr(row, 0, "Game Over. Press 'q' to quit.")
-            stdscr.getch()  # Wait for a key press
-            break
+            time.sleep(5.00)
+        if k == ord('s'):
+            GameSpeed = GameSpeed *0.70
+        if k == ord('d'):
+            GameSpeed = GameSpeed *1.30
         
         # Insert a delay so the game progresses at a reasonable pace
-        time.sleep(0.01)
+        time.sleep(GameSpeed)
 
         row = 9  # Reset row for next iteration
     
