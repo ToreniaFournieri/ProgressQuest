@@ -37,6 +37,7 @@ class Hero:
 
 
     def __init__(self, STR=DEFAULT_STR, VIT=DEFAULT_VIT, ENDURANCE=DEFAULT_ENDURANCE, LUCK=DEFAULT_LUCK, DIRECTIONALSENSE=DEFAULT_DIRECTIONALSENSE, EQUIPMENT_DURATION=EQUIPMENT_DURATION):
+        self.name = "主人公"
         self.level = 1
         self.experience = 0
         self.STR = STR
@@ -48,6 +49,8 @@ class Hero:
         self.max_health = int(100 + self.VIT / 4 * self.level)
         self.health = self.max_health
         self.stamina = 100
+        self.previous_health = self.max_health
+        self.previous_stamina = self.stamina
         self.gold = 0
         self.trophies = []
         self.distance_from_town = 0  # in kilometers
@@ -61,8 +64,15 @@ class Hero:
         self.magical_letters_collections = 0
         self.strong_weapon = None  # Initialize strong_weapon to None at the start
 
+        self.logs = []
         self.special_logs = []  # New attribute for storing special logs
 
+
+        # New attributes to track hero's current state
+        self.current_action = "questing"  # can be "questing", "fighting", "returning", "resting"
+        self.current_monster = None       # Stores the monster object if in battle
+        self.distance_to_town = 0         # Track distance when returning to town
+        self.rest_turns = 0               # Turns needed to rest
 
     def explore(self):
         self.stamina -= 1
@@ -89,43 +99,41 @@ class Hero:
         return monster_encounter, zone
     
     def fight(self, monster):
-        initial_monster_health = monster.health
-        while self.health > 0 and monster.health > 0:
-            damage_dealt = random.randint(self.STR // 3, self.STR)
-            damage_taken = monster.attack()
+        logs = []
+        victory = False
+        self.previous_health = self.health
+        monster.previous_health = monster.health
+        damage_dealt = random.randint(self.STR // 3, self.STR)
+        damage_taken = monster.attack()
 
-            # Apply weapon modifier and take Endurance into account for durability
-            if self.weapon and not self.weapon.is_broken():
-                damage_dealt += self.weapon.use()
-                if self.strong_weapon:
-                    damage_dealt += self.strong_weapon.use()
-                if random.random() < self.ENDURANCE / 40:
-                    self.weapon.duration += 1  # Revert the duration decrement
+        # Apply weapon modifier and take Endurance into account for durability
+        if self.weapon and not self.weapon.is_broken():
+            damage_dealt += self.weapon.use()
+            if self.strong_weapon:
+                damage_dealt += self.strong_weapon.use()
+            if random.random() < self.ENDURANCE / 40:
+                self.weapon.duration += 1  # Revert the duration decrement
 
-            # Apply shield modifier and take Endurance into account for durability
-            if self.shield and not self.shield.is_broken():
-                damage_taken -= self.shield.use()
-                if random.random() < self.ENDURANCE / 40:
-                    self.shield.duration += 1  # Revert the duration decrement
+        # Apply shield modifier and take Endurance into account for durability
+        if self.shield and not self.shield.is_broken():
+            damage_taken -= self.shield.use()
+            if random.random() < self.ENDURANCE / 40:
+                self.shield.duration += 1  # Revert the duration decrement
 
-            # Adjust damage dealt by monster's defense
-            effective_damage_dealt = monster.defend(damage_dealt)
-            monster.health -= max(effective_damage_dealt, 1)
-            if monster.health > 0:  # Only subtract damage from hero if boss is still alive
-                self.health -= max(damage_taken, 1)
+        # Adjust damage dealt by monster's defense
+        effective_damage_dealt = monster.defend(damage_dealt)
+        monster.health -= max(effective_damage_dealt, 0)
+        self.logs.append(f"{self.name}は{monster.name}に {effective_damage_dealt}ダメージを与えた！")
+        
 
-        victory = self.health > 0
-        # After the fight, if the hero won
-        if victory:
-            self.monster_defeat_streak += 1
-            self.experience += initial_monster_health  # <-- Add this line
-            if self.monster_defeat_streak == 3:
-                self.acquire_magical_letter()
-                self.monster_defeat_streak = 0  # Reset the counter
+        if monster.health > 0:  # Only subtract damage from hero if boss is still alive
+            self.health -= max(damage_taken, 0)
+            self.logs.append(f"{monster.name}は{self.name}に {damage_taken}ダメージを与えた！")
         else:
-            self.monster_defeat_streak = 0  # Reset the counter if the hero was defeated
-
+            self.logs.append(f"{monster.name}を倒した！")
+            victory = True
         return victory
+
 
     def boss_fight(self, boss):
         while self.health > 0 and boss.health > 0:
@@ -233,6 +241,24 @@ class Hero:
                     self.shield = chosen_equipment
                     self.gold -= equipment_cost
 
+    def start_battle(self, monster):
+        self.current_action = "fighting"
+        self.current_monster = monster
+
+    def progress_return(self):
+        if self.distance_to_town > 0:
+            self.distance_to_town -= 1  # Decrease the distance each turn
+        if self.distance_to_town <= 0:
+            self.current_action = "resting"
+            self.rest_turns = 3  # Let's say the hero rests for 3 turns
+
+    def progress_rest(self):
+        if self.rest_turns > 0:
+            self.rest_turns -= 1
+        if self.rest_turns <= 0:
+            self.current_action = "questing"
+            self.heal(1)  # Heal fully after resting
+
     def eat(self, town):
         food_cost = 10
         if self.gold >= food_cost:
@@ -318,12 +344,12 @@ class Equipment:
             else:
                 return f"{self.name} +{self.modifier} ({self.duration})"
 
-def display_hero_status(stdscr, hero, previous_health, previous_stamina):
+def display_hero_status(stdscr, hero):
 
     # Display hero status
-    health_change = int(hero.health - previous_health)
+    health_change = int(hero.health - hero.previous_health)
     health_sign = "+" if health_change >= 0 else ""
-    stamina_change = int(hero.stamina - previous_stamina)
+    stamina_change = int(hero.stamina - hero.previous_stamina)
     stamina_sign = "+" if stamina_change >= 0 else ""
 
     stdscr.addstr(0, 0, f"主人公  ターン: {hero.current_turn} ")
@@ -340,7 +366,22 @@ def display_hero_status(stdscr, hero, previous_health, previous_stamina):
     stdscr.addstr(3, 40, f"武器: {hero.weapon}  {hero.strong_weapon}")
     stdscr.addstr(4, 40, f"防具: {hero.shield} ")
     stdscr.addstr(5, 40, f"クエスト進捗: {hero.quest_progress}% ")
-    stdscr.addstr(6, 0, f"所持品: {[trophy_name for trophy_name, _ in hero.trophies]} ")
+    stdscr.addstr(6, 0, f"所持品: {hero.trophies}")
+
+    if hero.current_monster:
+        e_health_change = int(hero.current_monster.health - hero.current_monster.previous_health)
+        e_health_sign = "+" if e_health_change >= 0 else ""
+        stdscr.addstr(0, 100, f"敵: {hero.current_monster.name} ")
+
+        if hero.current_monster.health > 0:
+            stdscr.addstr(1, 100, f"持ち物:{hero.current_monster.trophy}")
+            stdscr.addstr(2, 100, f"体力:   {hero.current_monster.health}/{hero.current_monster.max_health}   ({e_health_sign}{e_health_change})")
+        else:
+            stdscr.addstr(1, 100, f"持ち物:{hero.current_monster.trophy}")
+            stdscr.addstr(2, 100, f"体力: 撃破/{hero.current_monster.max_health}   ({e_health_sign}{e_health_change})")
+
+
+
     # List of all possible magical letters in order
     magical_letters_pool = ["壱", "弐", "参", "肆", "伍", "陸", "漆", "捌", "玖"]
 
@@ -371,23 +412,36 @@ def display_hero_status(stdscr, hero, previous_health, previous_stamina):
     if hasattr(hero, 'current_boss') and hero.current_boss.health > 0:
         stdscr.addstr(8, 0, f"ボスの体力: {hero.current_boss.health}/{hero.current_boss.max_health}")
 
+    return hero.health, hero.stamina  # Return current health for next comparison
+
+
+def display_logs(stdscr, hero):
+    # Display regular logs
+    log_row = 9  # Assuming you want to start at row 7
+    for log in reversed(hero.logs[-20:]):  # Display only the last 10 logs
+        stdscr.addstr(log_row, 0, log)
+        log_row += 1
+
+    if len(hero.logs) > 20:
+        hero.special_logs = hero.special_logs[-20:]  # Keep only the latest 5 logs
+
     # Display special logs
-    special_log_row = 9  # start at row 15, for example
-    stdscr.addstr(special_log_row, 60, "特別なログ:")
-    if len(hero.special_logs) > 5:
-        hero.special_logs = hero.special_logs[-5:]  # Keep only the latest 5 logs
-    
+    special_log_row = 9
+    stdscr.addstr(special_log_row, 60, "Special Logs:")
     special_log_row += 1
-    for log in reversed(hero.special_logs):
+    for log in reversed(hero.special_logs[-5:]):  # Display only the last 5 special logs
         stdscr.addstr(special_log_row, 60, log)
         special_log_row += 1
+    if len(hero.special_logs) > 5:
+        hero.special_logs = hero.special_logs[-5:]  # Keep only the latest 5 logs
 
-    return hero.health, hero.stamina  # Return current health for next comparison
 
 # Define the Monster class
 class Monster:
     def __init__(self, zone=1):
         monster_type, self.health, self.attack_power, self.defense, self.trophy, self.trophy_value = random.choice(ZONE_MONSTERS[zone])
+        self.previous_health = self.health
+        self.max_health = self.health
         self.name = monster_type
 
     def attack(self):
@@ -426,10 +480,65 @@ class Town:
         
         return available_equipments if available_equipments else None
 
-        
+
+
 
 # Game Loop
-def game_loop(hero, turns=10):
+
+def game_loop(stdscr, hero, town):
+    while True:
+        stdscr.clear()
+        action_log = [""]
+        
+
+        # Display hero status and logs
+        display_hero_status(stdscr, hero)
+        display_logs(stdscr, hero)
+
+        hero.previous_stamina = hero.stamina
+
+
+        # If the hero is questing
+        if hero.current_action == "questing":
+            monster_encounter, zone = hero.explore()
+            if monster_encounter:
+                #create monster
+                monster = Monster(zone)
+                hero.logs.append(f"{monster.name}に遭遇 (体力: {monster.health}).")
+                hero.start_battle(monster)
+            else:
+                hero.explore()
+
+        # If the hero is in a battle
+        elif hero.current_action == "fighting":
+            victory = hero.fight(hero.current_monster)
+            if victory:
+                action_log.append(f"Defeated {hero.current_monster.name}!")
+                hero.trophies.append(hero.current_monster.trophy)
+                hero.current_action = "questing"  # Return to questing after the fight
+            elif hero.health > 20:
+                hero.current_action = "fighting"
+            else:
+                hero.current_action = "returning"  # Start returning to town
+                hero.distance_to_town = hero.distance_from_town  # Set distance to return
+
+        # If the hero is returning to town
+        elif hero.current_action == "returning":
+            hero.progress_return()
+
+        # If the hero is resting in town
+        elif hero.current_action == "resting":
+            hero.progress_rest()
+
+        # Refresh the screen and pause for a moment
+        stdscr.refresh()
+        time.sleep(0.5)
+        
+        return action_log
+
+
+'''
+def game_loop(hero, turns=1):
     town = Town()
     log = []
 
@@ -487,7 +596,22 @@ def game_loop(hero, turns=10):
         log.append((f"{hero.health}/{hero.max_health}", hero.gold, hero.stamina, len(hero.trophies), distance_display, f"{hero.quest_progress}%", weapon_status, shield_status, action_log))
 
     return log
+'''
 
+
+
+'''
+        victory = self.health > 0
+        # After the fight, if the hero won
+        if victory:
+            self.monster_defeat_streak += 1
+            self.experience += initial_monster_health  # <-- Add this line
+            if self.monster_defeat_streak == 3:
+                self.acquire_magical_letter()
+                self.monster_defeat_streak = 0  # Reset the counter
+        else:
+            self.monster_defeat_streak = 0  # Reset the counter if the hero was defeated
+'''
 
 def main(stdscr):
     # Set up the terminal
@@ -496,10 +620,7 @@ def main(stdscr):
     stdscr.nodelay(0)  # Wait for user input
     stdscr.keypad(True)
     
-    LOG_DISPLAY_COUNT = 5
-
     stdscr.addstr(0, 0, "Welcome to Text-Based Progress Quest!", curses.color_pair(1))
-
     stdscr.nodelay(1)  # Don't wait for user input
     stdscr.addstr(2, 0, "The game progresses automatically. Press 'q' to quit at any time.")
 
@@ -509,46 +630,9 @@ def main(stdscr):
     # Initialize game
     hero = Hero()
     town = Town()
-    log = []
     
-    # Initialize previous health for comparison
-    previous_health = hero.health
-    previous_stamina = hero.stamina
-    
-    row = 9  # Starting row for game logs
     while True:
-        stdscr.clear()  # Clear the screen
-        display_hero_status(stdscr, hero, previous_health, previous_stamina)
-        stdscr.addstr(row, 0, "----------------------------------------------")
-        row +=1
-
-        # Update previous_health and previous_stamina for the next iteration
-        previous_health = hero.health
-        previous_stamina = hero.stamina
-
-
-        # When a magical letter is acquired:
-        if hero.monster_defeat_streak == 3:
-            hero.monster_defeat_streak = 0
-            acquired_letter = random.choice(MAGICAL_LETTERS)
-            hero.magical_letters.add(acquired_letter)
-            hero.latest_magical_letter = acquired_letter  # Store the latest acquired letter
-
-        # Advance one turn and append the results to log
-        hero.current_turn += 1
-
-        turn_actions = game_loop(hero, 1)
-        log.append(turn_actions[0])
-
-        # Display the last n logs
-        for action_log in reversed(log[-LOG_DISPLAY_COUNT:]):
-            for line in action_log[-1]:
-                stdscr.addstr(row, 0, line)
-                row += 1
-            stdscr.addstr(row, 0, "--------------------------------")
-            row += 1
-        row += 1
-
+        game_loop(stdscr,hero, town)
         # Check for 'q' key to quit the game
         k = stdscr.getch()
         if k == ord('q'):
@@ -563,10 +647,8 @@ def main(stdscr):
         
         # Insert a delay so the game progresses at a reasonable pace
         time.sleep(GameSpeed)
-
-        row = 9  # Reset row for next iteration
     
-    stdscr.addstr(row, 0, "Thanks for playing!", curses.color_pair(1))
+    stdscr.addstr(1, 0, "Thanks for playing!", curses.color_pair(1))
     time.sleep(5.0)
 
     stdscr.getch()  # Wait for one more key press before exiting
