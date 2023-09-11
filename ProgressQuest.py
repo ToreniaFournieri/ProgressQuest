@@ -49,6 +49,7 @@ class Hero:
         self.max_health = int(100 + self.VIT / 4 * self.level)
         self.health = self.max_health
         self.stamina = 100
+        self.max_stamina = self.stamina
         self.previous_health = self.max_health
         self.previous_stamina = self.stamina
         self.gold = 0
@@ -249,15 +250,24 @@ class Hero:
         if self.distance_to_town > 0:
             self.distance_to_town -= 1  # Decrease the distance each turn
         if self.distance_to_town <= 0:
-            self.current_action = "resting"
-            self.rest_turns = 3  # Let's say the hero rests for 3 turns
+            self.current_action = "sleeping"
 
     def progress_rest(self):
-        if self.rest_turns > 0:
-            self.rest_turns -= 1
-        if self.rest_turns <= 0:
+        if self.health <= int(self.max_health * 20 / 100) and self.stamina >= 10:
+            self.health += 1  # Heal fully after resting
+        else:
+            self.stamina -= 10
             self.current_action = "questing"
-            self.heal(1)  # Heal fully after resting
+
+    def progress_sleep(self):
+        if self.health < self.max_health :
+            self.health += 1  # Heal fully after resting
+        if self.stamina < self.max_stamina :
+            self.stamina += 1
+        
+        if self.health == self.max_health and self.stamina == self.max_stamina:
+            self.current_action = "questing"
+            self.logs.append(f"十分に寝た。仕事に戻る。")
 
     def eat(self, town):
         food_cost = 10
@@ -351,8 +361,7 @@ def display_hero_status(stdscr, hero):
     health_sign = "+" if health_change >= 0 else ""
     stamina_change = int(hero.stamina - hero.previous_stamina)
     stamina_sign = "+" if stamina_change >= 0 else ""
-
-    stdscr.addstr(0, 0, f"主人公  ターン: {hero.current_turn} ")
+    stdscr.addstr(0, 0, f"主人公  ターン: {hero.current_turn} 状態:{hero.current_action}")
     stdscr.addstr(1, 0, f"力:{hero.STR}, 体力:{hero.VIT}, 運:{hero.LUCK}, 熟練:{hero.ENDURANCE}, 方向感覚:{hero.DIRECTIONALSENSE}  ")
     stdscr.addstr(2, 0, f"体力:   {hero.health}/{hero.max_health}   ({health_sign}{health_change})")
     stdscr.addstr(3, 0, f"スタミナ:  {hero.stamina}/100 ({stamina_sign}{stamina_change})")
@@ -443,6 +452,11 @@ class Monster:
         self.previous_health = self.health
         self.max_health = self.health
         self.name = monster_type
+        
+        if random.randint(1, 20) >= 3:  # monster doesn't have a trophy
+            self.trophy = None
+            self.trophy_value = None
+        
 
     def attack(self):
         return random.randint(self.attack_power // 2, self.attack_power)
@@ -513,26 +527,39 @@ def game_loop(stdscr, hero, town):
         elif hero.current_action == "fighting":
             victory = hero.fight(hero.current_monster)
             if victory:
-                action_log.append(f"Defeated {hero.current_monster.name}!")
-                hero.trophies.append(hero.current_monster.trophy)
+                action_log.append(f"{hero.current_monster.name}を倒した!")
+                if hero.current_monster.trophy:
+                    hero.trophies.append(hero.current_monster.trophy)
                 hero.current_action = "questing"  # Return to questing after the fight
             elif hero.health > 20:
                 hero.current_action = "fighting"
             else:
-                hero.current_action = "returning"  # Start returning to town
-                hero.distance_to_town = hero.distance_from_town  # Set distance to return
+                hero.current_action = "resting"  # Start returning to town
+                action_log.append(f"一旦休憩だ。")
 
         # If the hero is returning to town
         elif hero.current_action == "returning":
+            action_log.append(f"帰還する。")
             hero.progress_return()
 
-        # If the hero is resting in town
+
         elif hero.current_action == "resting":
             hero.progress_rest()
 
+#        # If the hero is in town
+#        elif hero.current_action == "XXXX":
+#            hero.distance_to_town = hero.distance_from_town  # Set distance to return
+        elif hero.current_action == "sleeping":
+            hero.progress_sleep()
+            
+        
+
+        else:
+            action_log.append(f"未実装の状態：{hero.current_action}")
+
+
         # Refresh the screen and pause for a moment
         stdscr.refresh()
-        time.sleep(0.5)
         
         return action_log
 
